@@ -353,7 +353,7 @@ def visualize_voxel_grid(voxel_grid):
 
 if __name__ == '__main__':
     image = cv2.imread('img.png', -1)  # grayscale img (H, W)
-    image = cv2.resize(image, (320, 256), interpolation=cv2.INTER_CUBIC)
+    image = cv2.resize(image, (224, 224), interpolation=cv2.INTER_CUBIC)
     image = np.float32(image) / 255.
 
     trajectory = np.load('trajectory.npy')

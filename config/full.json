@@ -5,7 +5,7 @@
     "data_loader": {
         "type": "TrainDataLoader",
         "args": {
-            "data_dir": "/root/deblur_own/data/train",
+            "data_dir": "/root/HFR_video_gen/data/train",
             "batch_size": 6,
             "shuffle": true,
             "validation_split": 0.1,
@@ -66,13 +66,13 @@
     "trainer": {
         "type": "DefaultTrainer",
         "args": {
-            "epochs": 20,
-            "save_dir": "/root/deblur_own/saved_full",
+            "epochs": 40,
+            "save_dir": "/root/HFR_video_gen/saved_full",
             "save_period": 20,
             "verbosity": 2,
             "monitor": "off",
             "tensorboardX": true,
-            "log_dir": "/root/deblur_own/saved_full/runs"
+            "log_dir": "/root/HFR_video_gen/saved_full/runs"
         }
     }
 }

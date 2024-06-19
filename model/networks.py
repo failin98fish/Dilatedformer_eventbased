@@ -230,7 +230,7 @@ class Chuncked_Self_Attn_FM(nn.Module):
         in_channel -> in_channel
     """
 
-    def __init__(self, in_channel, latent_dim=8, subsample=True, grid=(8, 8)):
+    def __init__(self, in_channel, latent_dim=8, subsample=True, grid=(7, 7)):
         super(Chuncked_Self_Attn_FM, self).__init__()
 
         self.self_attn_fm = Self_Attn_FM(in_channel, latent_dim=latent_dim, subsample=subsample)
@@ -238,11 +238,21 @@ class Chuncked_Self_Attn_FM(nn.Module):
 
     def forward(self, x):
         N, C, H, W = x.shape
+        
         chunk_size_H, chunk_size_W = H // self.grid[0], W // self.grid[1]
+        print("chunk_size_H: ", chunk_size_H)
+        print("chunk_size_W: ", chunk_size_W)
+        
+        if H % self.grid[0] != 0 or W % self.grid[1] != 0:
+            raise ValueError("Input size is not divisible by the grid size.")
+        
         x_ = x.reshape(N, C, self.grid[0], chunk_size_H, self.grid[1], chunk_size_W).permute(0, 2, 4, 1, 3, 5).reshape(
             N * self.grid[0] * self.grid[1], C, chunk_size_H, chunk_size_W)
-        output = self.self_attn_fm(x_).reshape(N, self.grid[0], self.grid[1], C, chunk_size_H,
-                                               chunk_size_W).permute(0, 3, 1, 4, 2, 5).reshape(N, C, H, W)
+        
+        output = self.self_attn_fm(x_).reshape(N * self.grid[0] * self.grid[1], C, chunk_size_H, chunk_size_W).permute(
+            0, 2, 3, 1).reshape(N, self.grid[0], self.grid[1], chunk_size_H, chunk_size_W, C).permute(0, 5, 1, 3, 2, 4).reshape(
+            N, C, H, W)
+        
         return output
 
 

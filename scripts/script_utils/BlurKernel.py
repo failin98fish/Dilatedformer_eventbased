@@ -118,7 +118,7 @@ if __name__ == '__main__':
     np.save('patch_wise_kernel.npy', patch_wise_kernel)
 
     image = cv2.imread('img.png', -1)
-    image = cv2.resize(image, (320, 256), interpolation=cv2.INTER_CUBIC)
+    image = cv2.resize(image, (224, 224), interpolation=cv2.INTER_CUBIC)
     image = np.float32(image) / 255.
     blur_image_uniform = blur_image_by_kernel(image, kernel)
     blur_image_spatially_variant = blur_image_by_patch_wise_kernel(image, patch_wise_kernel, kernel.shape[0])

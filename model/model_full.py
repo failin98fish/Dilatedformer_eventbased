@@ -6,7 +6,7 @@ from base.base_model import BaseModel
 from utils.util import torch_laplacian
 
 class DefaultModel(BaseModel):
-    def __init__(self, init_dim=64, n_ev=13, grid=(8, 10), norm_type='instance', use_dropout=False, rgb=False):
+    def __init__(self, init_dim=64, n_ev=13, grid=(7,7), norm_type='instance', use_dropout=False, rgb=False):
         super(DefaultModel, self).__init__()
 
         norm_layer = get_norm_layer(norm_type)
@@ -36,7 +36,7 @@ class DefaultModel(BaseModel):
             nn.Conv2d(16, 1, kernel_size=1, stride=1, bias=use_bias)
         )
         self.denoiser = Denoiser(512, 256)
-        self.self_attn = Chuncked_Self_Attn_FM(256, latent_dim=16, subsample=True, grid=grid)
+        self.self_attn = Chuncked_Self_Attn_FM(256, latent_dim=8, subsample=True, grid=grid)
         self.decoder = nn.ModuleList([
             Decoder(256, 128),
             Decoder(128, 64),

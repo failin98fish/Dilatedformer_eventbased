@@ -326,7 +326,7 @@ if __name__ == '__main__':
             'central_angle': None,
             'position_angle': None,
             'clock_wise': None,
-            'downsampling': 3,
+            'downsampling': 1,
         },
         'patch_wise_trajectory_args': {
             'canvas': 48,
@@ -335,7 +335,7 @@ if __name__ == '__main__':
             'z_translation_size': None,
             'z_rotation_angle': None,
             'z_rotation_size': None,
-            'downsampling': 3,
+            'downsampling': 1,
         },
         'trajectory_num': 20,
         'start_and_chunk': start_and_chunk,
@@ -353,14 +353,14 @@ if __name__ == '__main__':
     }
 
     maker_args = {
-        'downsampling': 3,
+        'downsampling': 1,
         'total_time': 0.1,
         'temporal_bins': 13,
         **dvs_model_simulator_args
     }
 
     saver_args = {
-        'out_base_dir': '/mnt/disk/msc2024/runzhuw/data/' + mode,
+        'out_base_dir': '/root/HFR_video_gen/data/' + mode,
         'subdir_mapping': {
             'share': {
                 'APS_blur': '.png',

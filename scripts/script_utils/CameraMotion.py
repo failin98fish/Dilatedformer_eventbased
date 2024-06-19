@@ -378,7 +378,7 @@ if __name__ == '__main__':
         trajectory = trajectory_generator.generate()
         success = trajectory_generator.success
     trajectory_generator.show_result()
-    bidirectional_flow = trajectory_generator.obtain_bidirectional_flow(256, 320)
+    bidirectional_flow = trajectory_generator.obtain_bidirectional_flow(224, 224)
     np.save('bidirectional_flow.npy', bidirectional_flow)
 
     patch_wise_trajectory_generator = PatchWiseTrajectoryGenerator(trajectory, **patch_wise_trajectory_args)
@@ -390,7 +390,7 @@ if __name__ == '__main__':
         patch_wise_trajectory = patch_wise_trajectory_generator.generate()
         success = patch_wise_trajectory_generator.success
     patch_wise_trajectory_generator.show_result()
-    patch_wise_bidirectional_flow = patch_wise_trajectory_generator.obtain_bidirectional_flow(256, 320)
+    patch_wise_bidirectional_flow = patch_wise_trajectory_generator.obtain_bidirectional_flow(224, 224)
     np.save('patch_wise_bidirectional_flow.npy', patch_wise_bidirectional_flow)
 
     np.save('trajectory.npy', trajectory)
