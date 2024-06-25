@@ -132,3 +132,45 @@ def convert_flows_to_angle_and_length(flows):
     angle = torch.atan2(-v, u)
     length = torch.sqrt(u ** 2 + v ** 2)
     return angle, length
+
+def patchify(imgs, patch_size, overlap=0):
+    """
+    imgs: Tensor of images, shape [B, C, H, W]
+    patch_size: Tuple (pH, pW) representing the height and width of patches
+    overlap: Overlap between patches
+    """
+    batch_size, channels, height, width = imgs.shape
+    stride = patch_size - overlap
+    effective_height = height - overlap
+    effective_width = width - overlap
+    # Number of patches in height and width
+    num_patches_height = (effective_height + stride - 1) // stride
+    num_patches_width = (effective_width + stride - 1) // stride
+    patches = []
+    
+    for i in range(0, height, stride):
+        for j in range(0, width, stride):
+            if i + patch_size <= height and j + patch_size <= width:
+                patches.append(imgs[:, :, i:i + patch_size, j:j + patch_size])
+    
+    patches = torch.stack(patches, dim=1)  # Shape: [B, num_patches, C, pH, pW]
+    return patches
+
+def unpatchify(patches, img_shape):
+    """
+    patches: Tensor of image patches, shape [B, num_patches, C, pH, pW]
+    img_shape: Tuple (H, W) representing the original height and width of the image
+    """
+    batch_size, num_patches, channels, patch_size, _ = patches.shape
+    _, _, height, width = img_shape
+    stride = patch_size
+    output = torch.zeros((batch_size, channels, height, width), device=patches.device)
+
+    patch_idx = 0
+    for i in range(0, height, stride):
+        for j in range(0, width, stride):
+            if i + patch_size <= height and j + patch_size <= width:
+                output[:, :, i:i + patch_size, j:j + patch_size] += patches[:, patch_idx]
+                patch_idx += 1
+    
+    return output

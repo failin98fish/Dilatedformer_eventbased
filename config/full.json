@@ -6,7 +6,7 @@
         "type": "TrainDataLoader",
         "args": {
             "data_dir": "/root/HFR_video_gen/data/train",
-            "batch_size": 6,
+            "batch_size": 1,
             "shuffle": true,
             "validation_split": 0.1,
             "num_workers": 1

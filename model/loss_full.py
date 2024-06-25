@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 from .loss_utils.total_variation_loss import TVLoss
@@ -7,18 +8,33 @@ from utils.util import torch_laplacian
 
 tv = TVLoss()
 
-
-# def flow_loss(F_pred, F_gt, **kwargs):
-#     l1_loss_lambda = kwargs.get('l1_loss_lambda', 1)
-#     l1_loss = F.l1_loss(F_pred, F_gt) * l1_loss_lambda
-#     print('flow_loss: l1_loss:', l1_loss.item())
-
-#     tv_loss_lambda = kwargs.get('tv_loss_lambda', 1)
-#     tv_loss = tv(F_pred) * tv_loss_lambda
-#     print('flow_loss: tv_loss:', l1_loss.item())
-
-#     return l1_loss + tv_loss
-
+def edge_loss(x, y, **kwargs):
+    if x.shape[1] == 1:
+        x = x.repeat(1, 3, 1, 1)  # 将单通道灰度图重复为三通道
+    if y.shape[1] == 1:
+        y = y.repeat(1, 3, 1, 1)  # 将单通道灰度图重复为三通道
+    
+    k = torch.Tensor([[.05, .25, .4, .25, .05]])
+    kernel = torch.matmul(k.t(), k).unsqueeze(0).repeat(3, 1, 1, 1)
+    if torch.cuda.is_available():
+        kernel = kernel.cuda()
+    
+    def conv_gauss(img):
+        n_channels, _, kw, kh = kernel.shape
+        img = F.pad(img, (kw // 2, kh // 2, kw // 2, kh // 2), mode='replicate')
+        return F.conv2d(img, kernel, groups=n_channels)
+    
+    def laplacian_kernel(current):
+        filtered = conv_gauss(current)  # filter
+        down = filtered[:, :, ::2, ::2]  # downsample
+        new_filter = torch.zeros_like(filtered)
+        new_filter[:, :, ::2, ::2] = down * 4  # upsample
+        filtered = conv_gauss(new_filter)  # filter
+        diff = current - filtered
+        return diff
+    
+    loss = F.l1_loss(laplacian_kernel(x), laplacian_kernel(y))
+    return loss
 
 def denoise_loss(Bi_clean_pred, Bi_clean_gt, **kwargs):
     l1_loss_lambda = kwargs.get('l1_loss_lambda', 1)
@@ -53,18 +69,8 @@ def reconstruction_loss(S_pred, S_gt, **kwargs):
     return l2_loss + perceptual_loss
 
 
-def edge_loss(pred, target):
-    pred_edge = torch.abs(torch_laplacian(pred))
-    target_edge = torch.abs(torch_laplacian(target))
-    return F.l1_loss(pred_edge, target_edge)
-
-
 
 def loss_full(Bi_clean_pred, Bi_clean_gt, S_pred, S_gt, code, **kwargs):
-    # Lf_lambda = kwargs.get('Lf_lambda', 1)
-    # Lf = flow_loss(F_pred, F_gt, **kwargs['flow_loss']) * Lf_lambda
-    # print('Lf:', Lf.item())
-
     Lr_lambda = kwargs.get('Lr_lambda', 1)
     Lr = reconstruction_loss(S_pred, S_gt, **kwargs['reconstruction_loss']) * Lr_lambda
     print('Lr:', Lr.item())
@@ -76,9 +82,8 @@ def loss_full(Bi_clean_pred, Bi_clean_gt, S_pred, S_gt, code, **kwargs):
     loss_log_diff = torch.mean(torch.abs(code))  # log difference的L1正则化项
     print('loss_log_diff:', 0.1*loss_log_diff)
     
-    
-    # tv_loss_lambda = kwargs.get('tv_loss_lambda', 1)
-    # tv_loss = tv(S_pred) * tv_loss_lambda
-    # print(' tv_loss:', tv_loss)
+    edge_loss_lambda = kwargs.get('edge_loss_lambda', 1)
+    Le = edge_loss(S_pred, S_gt) * edge_loss_lambda
+    print('Le:', Le.item())
 
-    return Ld + Lr + 0.1*loss_log_diff
+    return Ld + Lr + 0.1*loss_log_diff + Le
