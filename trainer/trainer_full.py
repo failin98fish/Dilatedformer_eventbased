@@ -67,18 +67,15 @@ class DefaultTrainer(BaseTrainer):
             S_gt = sample['S'].to(self.device)
 
             # get network output
-            Bi_clean_pred, log_diff, S_pred, code= self.model(B, Bi, E)
-            # flow, log_diff, S_pred, code= self.model(B, E)
-            S_pred = torch.clamp(S_pred,min=0,max=1)
+            Bi_clean_pred, log_diff, S_pred, code = self.model(B, Bi, E)
+            S_pred = torch.clamp(S_pred, min=0, max=1)
+
             # visualization
             with torch.no_grad():
                 if batch_idx % 100 == 0:
                     # save images to tensorboardX
                     self.writer.add_image('Bi_clean_pred', make_grid(Bi_clean_pred))
                     self.writer.add_image('log_diff', make_grid(log_diff))
-                    # color_images = create_color_image(log_diff)
-                    # grid = make_grid(color_images)
-                    # self.writer.add_image('log_diff', grid)
                     self.writer.add_image('S_pred', make_grid(S_pred))
                     self.writer.add_image('S_gt', make_grid(S_gt))
                     self.writer.add_image('Blurred', make_grid(B))
@@ -88,19 +85,6 @@ class DefaultTrainer(BaseTrainer):
             model_loss = self.loss(Bi_clean_pred, Bi_clean_gt, S_pred, S_gt, code)
             model_loss.backward()
             self.optimizer.step()
-
-            # if batch_idx == 39:
-            #     F_vis = visualize_flow_torch(F_pred)
-            #     print("Fvis shape:", F_vis.shape)
-            #     show_tensor_images(F_vis)
-
-            #     print("F_gt shape:", F_gt.shape)
-
-            #     Fgt_vis = visualize_flow_torch(F_gt)
-            #     print("Fgt_vis shape:", Fgt_vis.shape)
-            #     show_tensor_images(Fgt_vis)
-            # if batch_idx == 39:
-            #     plot_grayscale_image(Bi, Bi_clean_pred, Bi_clean_gt)
 
             # calculate total loss/metrics and add scalar to tensorboard
             self.writer.add_scalar('loss', model_loss.item())
@@ -120,9 +104,6 @@ class DefaultTrainer(BaseTrainer):
                 )
                 self.logger.info('+' * 30)  # 添加分割线
 
-        # turn the learning rate
-        self.lr_scheduler.step()
-
         # get batch average loss/metrics as log and do validation
         log = {
             'loss': total_loss / len(self.data_loader),
@@ -131,6 +112,10 @@ class DefaultTrainer(BaseTrainer):
         if self.do_validation:
             val_log = self._valid_epoch(epoch)
             log = {**log, **val_log}
+            val_loss = val_log['val_loss']
+            self.lr_scheduler.step(val_loss)  # 传递验证损失
+        else:
+            self.lr_scheduler.step(total_loss / len(self.data_loader))  # 没有验证集时，使用训练损失
 
         return log
 
@@ -164,34 +149,28 @@ class DefaultTrainer(BaseTrainer):
                 S_gt = sample['S'].to(self.device)
 
                 # infer and calculate the loss
-                # (N, C, H, W) GPU tensor
-                # F_pred, Bi_clean_pred, S_pred = self.model(E, B, Bi)
-                Bi_clean_pred, log_diff, S_pred, code= self.model(B, Bi, E)
-                S_pred = torch.clamp(S_pred,min=0,max=1)
+                Bi_clean_pred, log_diff, S_pred, code = self.model(B, Bi, E)
+                S_pred = torch.clamp(S_pred, min=0, max=1)
+
                 with torch.no_grad():
                     if batch_idx % 100 == 0:
                         # save images to tensorboardX
                         self.writer.add_image('Bi_clean_pred', make_grid(Bi_clean_pred))
-                        # self.writer.add_image('log_diff', make_grid(create_color_image(log_diff)))
+                        
                         color_images = create_color_image(log_diff)
                         grid = make_grid(color_images)
                         self.writer.add_image('log_diff', grid)
+                        
                         self.writer.add_image('S_pred', make_grid(S_pred))
                         self.writer.add_image('S_gt', make_grid(S_gt))
                         self.writer.add_image('Blurred', make_grid(B))
-                    
-                # loss = self.loss(F_pred, Bi_clean_pred, S_pred, F_gt, Bi_clean_gt, S_gt)
+
                 loss = self.loss(Bi_clean_pred, Bi_clean_gt, S_pred, S_gt, code)
 
                 # calculate total loss/metrics and add scalar to tensorboardX
                 self.writer.add_scalar('loss', loss.item())
-                # self.writer.add_scalar('val_loss', loss.item())
                 total_val_loss += loss.item()
                 total_val_metrics += self._eval_metrics(S_pred, S_gt)
-
-        # add histogram of model parameters to the tensorboard
-        # for name, p in self.model.named_parameters():
-        #     self.writer.add_histogram(name, p, bins='auto')
 
         return {
             'val_loss': total_val_loss / len(self.valid_data_loader),

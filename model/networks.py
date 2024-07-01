@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torchvision import models
 import math
 from einops.einops import rearrange
@@ -250,6 +251,62 @@ class AutoencoderBackbone(nn.Module):
         out = self.model(x)
         return out
     
+# class Embeddings(nn.Module):
+#     def __init__(self, in_dim):
+#         super(Embeddings, self).__init__()
+
+#         self.activation = nn.ReLU(inplace=True)
+
+#         self.en_layer1_1 = nn.Sequential(
+#             nn.Conv2d(in_dim, 64, kernel_size=3, padding=1),
+#             nn.InstanceNorm2d(64),
+#             self.activation,
+#         )
+#         self.en_layer1_2 = nn.Sequential(
+#             nn.Conv2d(64, 64, kernel_size=3, padding=1),
+#             nn.InstanceNorm2d(64),
+#             self.activation,
+#             nn.Conv2d(64, 64, kernel_size=3, padding=1))
+#         self.en_layer1_3 = nn.Sequential(
+#             nn.Conv2d(64, 64, kernel_size=3, padding=1),
+#             nn.InstanceNorm2d(64),
+#             self.activation,
+#             nn.Conv2d(64, 64, kernel_size=3, padding=1))
+#         self.en_layer1_4 = nn.Sequential(
+#             nn.Conv2d(64, 64, kernel_size=3, padding=1),
+#             nn.InstanceNorm2d(64),
+#             self.activation,
+#             nn.Conv2d(64, 64, kernel_size=3, padding=1))
+
+#         self.en_layer2_1 = nn.Sequential(
+#             nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
+#             nn.InstanceNorm2d(128),
+#             self.activation,
+#         )
+#         self.en_layer2_2 = nn.Sequential(
+#             nn.Conv2d(128, 128, kernel_size=3, padding=1),
+#             nn.InstanceNorm2d(128),
+#             self.activation,
+#             nn.Conv2d(128, 128, kernel_size=3, padding=1))
+#         self.en_layer2_3 = nn.Sequential(
+#             nn.Conv2d(128, 128, kernel_size=3, padding=1),
+#             nn.InstanceNorm2d(128),
+#             self.activation,
+#             nn.Conv2d(128, 128, kernel_size=3, padding=1))
+#         self.en_layer2_4 = nn.Sequential(
+#             nn.Conv2d(128, 128, kernel_size=3, padding=1),
+#             nn.InstanceNorm2d(128),
+#             self.activation,
+#             nn.Conv2d(128, 128, kernel_size=3, padding=1),
+#             nn.InstanceNorm2d(128))
+        
+
+
+#         self.en_layer3_1 = nn.Sequential(
+#             nn.Conv2d(128, 320, kernel_size=3, stride=2, padding=1),
+#             self.activation,
+#         )
+
 class Embeddings(nn.Module):
     def __init__(self, in_dim):
         super(Embeddings, self).__init__()
@@ -289,14 +346,13 @@ class Embeddings(nn.Module):
             nn.Conv2d(128, 128, kernel_size=3, padding=1),
             self.activation,
             nn.Conv2d(128, 128, kernel_size=3, padding=1))
+        
 
 
         self.en_layer3_1 = nn.Sequential(
             nn.Conv2d(128, 320, kernel_size=3, stride=2, padding=1),
             self.activation,
         )
-
-
     def forward(self, x):
 
         hx = self.en_layer1_1(x)
@@ -355,7 +411,8 @@ class Embeddings_output(nn.Module):
             nn.Conv2d(64, 64, kernel_size=3, padding=1))
         self.de_layer1_1 = nn.Sequential(
             nn.Conv2d(64, 1, kernel_size=3, padding=1),
-            self.activation
+            nn.Sigmoid()  # 添加 Sigmoid 激活函数
+            
         )
 
     def forward(self, x, residual_1, residual_2):
@@ -620,3 +677,68 @@ class Stripformer(nn.Module):
         hx = self.decoder(hx, residual_1, residual_2)
         print ("hx.shape ", x.shape)
         return hx + conved_in
+
+
+class LocalSelfAttention(nn.Module):
+    def __init__(self, channels, heads=8, kernel_size=3):
+        super(LocalSelfAttention, self).__init__()
+        self.heads = heads
+        self.scale = (channels // heads) ** -0.5
+        self.kernel_size = kernel_size
+
+        # Initialize convolution to generate queries, keys, and values
+        self.to_qkv = nn.Conv2d(channels, channels * 3, 1, bias=False)
+        self.unfold = nn.Unfold(kernel_size=kernel_size, padding=kernel_size//2, stride=1)
+        self.fc_out = nn.Conv2d(channels, channels, 1)
+
+    def forward(self, x):
+        B, C, H, W = x.shape
+
+        qkv = self.to_qkv(x)
+        q, k, v = torch.chunk(qkv, 3, dim=1)
+        q, k, v = [self.unfold(t).view(B, self.heads, C//self.heads, self.kernel_size**2, H, W) for t in (q, k, v)]
+
+        q = q * self.scale
+        dots = torch.einsum('bhncij,bhmcij->bhnmij', q, k)  # Adjusted indices for correct einsum operation
+        attn = F.softmax(dots, dim=-3)  # Softmax over the third-last dimension
+
+        out = torch.einsum('bhnmij,bhmcij->bhncij', attn, v)
+        out = out.contiguous().view(B, C, -1, H, W)
+        out = out.sum(dim=2)  # Sum over the window elements
+        out = self.fc_out(out) + x  # Residual connection
+        return out
+
+class DilatedConvBlock(nn.Module):
+    """
+    A block of dilated convolutions to expand the receptive field.
+    """
+    def __init__(self, in_channels, out_channels, dilation):
+        super(DilatedConvBlock, self).__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=dilation, dilation=dilation)
+        self.norm = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        return self.relu(self.norm(self.conv(x)))
+
+class TransformerWithLocality(nn.Module):
+    """
+    Transformer module incorporating locality sensitivity.
+    """
+    def __init__(self, in_channels, out_channels, dim, depth=4, heads=8, kernel_size=3):
+        super(TransformerWithLocality, self).__init__()
+        self.input_conv = nn.Conv2d(in_channels, dim, kernel_size=1)
+        self.layers = nn.ModuleList([])
+        for i in range(depth):
+            dilation = 2 ** i
+            self.layers.append(DilatedConvBlock(dim, dim, dilation))
+            self.layers.append(LocalSelfAttention(dim, heads=heads, kernel_size=kernel_size))
+        self.output_conv = nn.Conv2d(dim, out_channels, kernel_size=1)
+
+    def forward(self, x):
+        x = self.input_conv(x)
+        for layer in self.layers:
+            x = layer(x)
+        x = self.output_conv(x)
+        return x
+

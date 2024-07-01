@@ -1,7 +1,7 @@
 import functools
 import torch
 import torch.nn as nn
-from .networks import SEBlock, AutoencoderBackbone, Stripformer, get_norm_layer
+from .networks import SEBlock, AutoencoderBackbone, Stripformer, get_norm_layer, TransformerWithLocality
 from base.base_model import BaseModel
 from utils.util import torch_laplacian
 
@@ -19,6 +19,10 @@ class DefaultModel(BaseModel):
 
         self.se_block2 = nn.Sequential(
             nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=use_bias),
+            SEBlock(16, 2),
+            nn.Conv2d(16, 16, kernel_size=3, stride=1, padding=1, bias=use_bias),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(16, 16, kernel_size=3, stride=1, padding=1, bias=use_bias),
             nn.ReLU(inplace=True),
             SEBlock(16, 2),
             nn.Conv2d(16, 1, kernel_size=1, stride=1, bias=use_bias)
@@ -30,10 +34,10 @@ class DefaultModel(BaseModel):
             nn.Tanh()
         )
         self.img_stripformer = nn.Sequential(
-            Stripformer(1)
+            TransformerWithLocality(in_channels=1, out_channels=1, dim=64, depth=4, heads=8, kernel_size=3)
         )
         self.events_stripformer = nn.Sequential(
-            Stripformer(n_ev)
+            TransformerWithLocality(in_channels=13, out_channels=1, dim=64, depth=4, heads=8, kernel_size=3)
         )
         self.tanh = nn.Tanh()
 

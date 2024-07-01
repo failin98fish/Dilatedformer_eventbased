@@ -1,5 +1,6 @@
 import os
 import fnmatch
+import random
 
 import numpy as np
 import cv2
@@ -25,6 +26,7 @@ class TrainDataset(Dataset):
 
     def __init__(self, data_dir, transform=None, RGB=False):
         self.RGB = RGB
+        self.crop_size = 112
 
         self.E_dir = os.path.join(data_dir, 'subnetwork1', 'events_voxel_grid')
         self.B_dir = os.path.join(data_dir, 'share', 'APS_blur')
@@ -80,13 +82,40 @@ class TrainDataset(Dataset):
             S = cv2.imread(os.path.join(self.S_dir, name + '.png'), -1)[..., None]
 
         if self.transform:
-            E = self.transform(E)
-            B = self.transform(B)
-            Bi = self.transform(Bi)
+            # 随机选择裁剪位置
+            crop = True
+            if crop:
+                h, w = E.shape[:2]
+                top = random.randint(0, h - self.crop_size)
+                left = random.randint(0, w - self.crop_size)
 
-            Bi_clean = self.transform(Bi_clean)
-            F = self.transform(F)
-            S = self.transform(S)
+                # 对 E, B, Bi 进行相同位置的裁剪
+                E = E[top:top+self.crop_size, left:left+self.crop_size]
+                B = B[top:top+self.crop_size, left:left+self.crop_size]
+                Bi = Bi[top:top+self.crop_size, left:left+self.crop_size]
+
+                # 对其他图像进行相同位置的裁剪
+                Bi_clean = Bi_clean[top:top+self.crop_size, left:left+self.crop_size]
+                F = F[top:top+self.crop_size, left:left+self.crop_size]
+                S = S[top:top+self.crop_size, left:left+self.crop_size]
+
+                # 对裁剪后的图像应用其他转换
+                E = self.transform(E)
+                B = self.transform(B)
+                Bi = self.transform(Bi)
+
+                Bi_clean = self.transform(Bi_clean)
+                F = self.transform(F)
+                S = self.transform(S)
+            else:
+                # 对裁剪后的图像应用其他转换
+                E = self.transform(E)
+                B = self.transform(B)
+                Bi = self.transform(Bi)
+
+                Bi_clean = self.transform(Bi_clean)
+                F = self.transform(F)
+                S = self.transform(S)
 
         return {'E': E, 'B': B, 'Bi': Bi, 'Bi_clean': Bi_clean, 'F': F, 'S': S, 'name': name}
 

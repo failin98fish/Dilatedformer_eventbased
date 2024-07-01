@@ -127,7 +127,7 @@ class Maker:
         * RGB and RGB_blur is in [R, G, B] manner
     """
 
-    def __init__(self, RGB, base_trajectory_RGB, patch_wise_trajectory_RGB, downsampling=3, total_time=0.1,
+    def __init__(self, RGB, base_trajectory_RGB, patch_wise_trajectory_RGB, downsampling=1, total_time=0.1,
                  temporal_bins=13, **dvs_model_simulator_args):
         self.RGB = RGB
         self.RGB_blur_clean = np.zeros_like(self.RGB)
