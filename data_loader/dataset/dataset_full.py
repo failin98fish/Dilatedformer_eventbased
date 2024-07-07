@@ -26,7 +26,7 @@ class TrainDataset(Dataset):
 
     def __init__(self, data_dir, transform=None, RGB=False):
         self.RGB = RGB
-        self.crop_size = 112
+        self.crop_size = 128
 
         self.E_dir = os.path.join(data_dir, 'subnetwork1', 'events_voxel_grid')
         self.B_dir = os.path.join(data_dir, 'share', 'APS_blur')
@@ -55,7 +55,7 @@ class TrainDataset(Dataset):
         # (H, W, 13)
         E = normalize_events(np.load(os.path.join(self.E_dir, name + '.npy')))
         # (H, W, 1)
-        print(os.path.join(self.B_dir, name + '.png'))
+        # print(os.path.join(self.B_dir, name + '.png'))
         B = cv2.imread(os.path.join(self.B_dir, name + '.png'), -1)[..., None]
 
         # as target:
@@ -83,7 +83,7 @@ class TrainDataset(Dataset):
 
         if self.transform:
             # 随机选择裁剪位置
-            crop = True
+            crop = False
             if crop:
                 h, w = E.shape[:2]
                 top = random.randint(0, h - self.crop_size)

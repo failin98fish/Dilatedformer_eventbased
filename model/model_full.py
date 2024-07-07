@@ -1,7 +1,7 @@
 import functools
 import torch
 import torch.nn as nn
-from .networks import SEBlock, AutoencoderBackbone, Stripformer, get_norm_layer, TransformerWithLocality
+from .networks import SEBlock, AutoencoderBackbone, get_norm_layer, TransformerWithLocality
 from base.base_model import BaseModel
 from utils.util import torch_laplacian
 
@@ -34,10 +34,10 @@ class DefaultModel(BaseModel):
             nn.Tanh()
         )
         self.img_stripformer = nn.Sequential(
-            TransformerWithLocality(in_channels=1, out_channels=1, dim=64, depth=4, heads=8, kernel_size=3)
+            TransformerWithLocality(in_channels=1, out_channels=1, dim=64, heads=8, kernel_size=3)
         )
         self.events_stripformer = nn.Sequential(
-            TransformerWithLocality(in_channels=13, out_channels=1, dim=64, depth=4, heads=8, kernel_size=3)
+            TransformerWithLocality(in_channels=13, out_channels=1, dim=64, heads=8, kernel_size=3)
         )
         self.tanh = nn.Tanh()
 
@@ -49,20 +49,20 @@ class DefaultModel(BaseModel):
 
         bi_gamma = noised_b_image ** (1 / 2.2)
         bi_clean = torch.clamp(self.bi_denoiser(bi_gamma) + bi_gamma, min=0, max=1) ** 2.2
-        print(bi_clean.shape)
+        # print(bi_clean.shape)
 
         blurred_code = self.img_stripformer(blurred_code)
-        print("after img_stripformer: ", blurred_code.shape)
+        # print("after img_stripformer: ", blurred_code.shape)
         events_code = self.events_stripformer(events_code)
-        print("after events_stripformer: ", events_code.shape)
+        # print("after events_stripformer: ", events_code.shape)
 
         cated = torch.cat((bi_clean, blurred_code, events_code), dim=1)
         fused = self.se_block2(cated)
-        print(fused.shape)
+        # print(fused.shape)
         log_diff = torch.neg(fused)
-        print(log_diff.shape)
+        # print(log_diff.shape)
         log_diff = self.tanh(log_diff)
         sharp_image = log_diff + bi_clean
-        print(sharp_image.shape)
+        # print(sharp_image.shape)
 
         return bi_clean, log_diff, sharp_image, log_diff

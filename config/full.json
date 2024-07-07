@@ -1,15 +1,15 @@
 {
     "name": "default",
-    "n_gpu": 1,
+    "n_gpu": 2,
     "module": "full",
     "data_loader": {
         "type": "TrainDataLoader",
         "args": {
-            "data_dir": "/root/HFR_video_gen/data/train",
+            "data_dir": "/mnt/disk/msc2024/runzhuw/data/train",
             "batch_size": 4,
             "shuffle": true,
             "validation_split": 0.1,
-            "num_workers": 1
+            "num_workers": 2
         }
     },
     "model": {
@@ -66,13 +66,13 @@
     "trainer": {
         "type": "DefaultTrainer",
         "args": {
-            "epochs": 100,
-            "save_dir": "/root/HFR_video_gen/saved_full",
-            "save_period": 20,
+            "epochs": 102,
+            "save_dir": "/mnt/disk/msc2024/runzhuw/saved_full",
+            "save_period": 50,
             "verbosity": 2,
             "monitor": "off",
             "tensorboardX": true,
-            "log_dir": "/root/HFR_video_gen/saved_full/runs"
+            "log_dir": "/mnt/disk/msc2024/runzhuw/saved_full/runs"
         }
     }
 }
