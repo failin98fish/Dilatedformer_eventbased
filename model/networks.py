@@ -325,13 +325,13 @@ class TransformerWithLocality(nn.Module):
         x = self.input_conv(x)
 
         x = self.hdc_block1(x)
-        x = self.attn(x)
+        # x = self.attn(x)
 
         x = self.hdc_block2(x)
-        x = self.attn(x)
+        # x = self.attn(x)
 
         x = self.hdc_block3(x)
-        x = self.attn(x)
+        # x = self.attn(x)
 
         out = self.output_conv(x)
         return out
